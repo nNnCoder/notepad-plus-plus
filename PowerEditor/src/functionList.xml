@@ -1,284 +1,1249 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!--
-For learning making your language parser, please check the following link:
-http://notepad-plus-plus.org/features/function-list.html
+  To learn making your own language parser, please check the following link:
+  http://notepad-plus-plus.org/features/function-list.html
+
+~~~~~
+
+  For PCRE, and most other so-called Perl-compatible flavors, escape
+      these outside character classes: .^$*+?()[{\|
+  and these  inside character classes: ^-]\
+
+~~~~~
+
+    _____ Meta-character
+    |       _____ Used to find
+    V       V
+    
+    \b      a word boundary (beginning or end)
+    \B      .   .   .   .   .   .   .   .   .   [^\b]
+    \d      a digit .   .   .   .   .   .   .   [0-9]
+    \D      .   .   .   .   .   .   .   .   .   [^\d]
+    \h      a horizontal whitespace character   [\t ]
+    \f      a form feed character
+    \n      a newline character
+    \r      a carriage return character
+    \s      a whitespace character  .   .   .   [ \f\n\r\t]
+    \S      .   .   .   .   .   .   .   .   .   [^\s]
+    \t      a tab character
+    \w      a word character    .   .   .   .   [A-Za-z0-9_]
+    \W      .   .   .   .   .   .   .   .   .   [^\w]
+
+~~~~~
+
+  Make XML Compliant:
+                        Match                           Replace
+    '       &apos;
+    "       &quot;
+    <       &lt;        "([^\r\n<"]*)[<]([^\r\n"]*)"    "\1&lt;\2"
+    >       &gt;        "([^\r\n>"]*)[>]([^\r\n"]*)"    "\1&gt;\2"
+    &       &amp;
+
+~~~~~
+
+  SLC       Single-Line Comment       (?m-s)  ^$ do    match at line breaks, dot doesn't
+  MLC       Multi-Line Comment        (?s-m)  ^$ don't match at line breaks, dot does
+
+  EOL       End of Line               \r?\n|\r      i.e. UNIX LF, Win CRLF, Mac (old) CR
+  LB        Line Break                see EOL
+  not EOL == not LB                   [^\r\n]+
+  QUOTE                               [&apos;&quot;]
+  TRIQUOTE                            (?:&apos;{3}|&quot;{3})
+  STRLIT    STRing LITeral            (?'STRLIT'(?s-m)&quot;[^&quot;\\]*(?:\\.[^&quot;\\]*)*&quot;|&apos;[^&apos;\\]*(?:\\.[^&apos;\\]*)*&apos;)
+
+  Lua parser specific:
+  MLCLVL    Multi-Line Comment LeVeL
+  SLLVL     String Literal LeVeL
+
 -->
 <NotepadPlus>
-	<functionList>
-		<associationMap>
-		<!-- langID:
-			L_TEXT: 0     L_PHP: 1        L_C: 2        L_CPP: 3       L_CS: 4         L_OBJC: 5
-			L_JAVA: 6     L_RC: 7         L_HTML: 8     L_XML: 9       L_MAKEFILE: 10  L_PASCAL: 11
-			L_BATCH:12    L_INI: 13       L_ASCII: 14   L_USER: 15     L_ASP: 16       L_SQL: 17
-			L_VB: 18      L_JS: 19        L_CSS: 20     L_PERL: 21     L_PYTHON: 22    L_LUA: 23
-			L_TEX: 24     L_FORTRAN: 25   L_BASH: 26    L_FLASH: 27    L_NSIS: 28      L_TCL: 29
-			L_LISP: 30    L_SCHEME: 31    L_ASM: 32     L_DIFF: 33     L_PROPS: 34     L_PS: 35
-			L_RUBY: 36    L_SMALLTALK:37  L_VHDL: 38    L_KIX: 39      L_AU3: 40       L_CAML: 41
-			L_ADA: 42     L_VERILOG: 43   L_MATLAB: 44  L_HASKELL: 45  L_INNO: 46      L_SEARCHRESULT: 47
-			L_CMAKE: 48   L_YAML: 49      L_COBOL 50    L_GUI4CLI: 51  L_D: 52         L_POWERSHELL: 53
-			L_R: 54       L_JSP: 55
-		-->
-			<association langID="1" id="php_function"/>
-			<association langID="2" id="c_function"/>
-			<association langID="3" id="c_cpp_function"/>
-			<association langID="4" id="cs_function"/>
-			<association langID="6" id="java"/>
-			<association langID="9" id="xml_node"/>
-			<association langID="12" id="batch_label"/>
-			<association langID="13" id="ini_section"/>
-			<association langID="19" id="js_function"/>
-			<association langID="21" id="perl_function"/>
-			<association langID="22" id="python_function"/>
-			<association langID="26" id="bash_function"/>
-			<association langID="28" id="nsis_syntax"/>
-			<association langID="36" id="ruby_function"/>
-		<!--
-			if langID cannot be found above, you can still set the file extensions
-			<association ext=".my_passer_ext1" id="my_passer_id"/>
-			<association ext=".my_passer_ext2" id="my_passer_id"/>
-			
-			for User Defined Languages:
-			<association userDefinedLangName="my user defined language" id="my_udl_passer_id"/>
-			<association userDefinedLangName="Autocad" id="my_autocad_passer_id"/>
-		-->
+  <functionList>
+    <associationMap>
+<!--             parserID _______                                                 -->
+<!--                            V                                                 -->
+<!--  <association langID= "0" id=   "plaintext_syntax"    />    - L_TEXT         -->
+      <association langID= "1" id=         "php_syntax"    /> <!-- L_PHP          -->
+      <association langID= "2" id=           "c_syntax"    /> <!-- L_C            -->
+      <association langID= "3" id=   "cplusplus_syntax"    /> <!-- L_CPP          -->
+<!--  <association langID= "4" id=      "csharp_syntax"    />    - L_CS           -->
+      <association langID= "4" id=      "csharp_class"     /> <!-- L_CS           -->
+<!--  <association langID= "5" id=     "objectc_syntax"    />    - L_OBJC         -->
+      <association langID= "6" id=        "java_syntax"    /> <!-- L_JAVA         -->
+<!--  <association langID= "7" id=    "resource_syntax"    />    - L_RC           -->
+<!--  <association langID= "8" id=        "html_syntax"    />    - L_HTML         -->
+      <association langID= "8" id=        "html_element"   /> <!-- L_HTML         -->
+<!--  <association langID= "9" id=         "xml_node"      />    - L_XML          -->
+      <association langID= "9" id="functionlist_syntax"    /> <!-- L_XML          -->
+<!--  <association langID="10" id=    "makefile_syntax"    />    - L_MAKEFILE     -->
+      <association langID="11" id=      "pascal_syntax"    /> <!-- L_PASCAL       -->
+      <association langID="12" id=       "batch_label"     /> <!-- L_BATCH        -->
+      <association langID="13" id=         "ini_section"   /> <!-- L_INI          -->
+<!--  <association langID="14" id=       "ascii_syntax"    />    - L_ASCII        -->
+<!--  <association langID="15" id=         "udl_syntax"    />    - L_USER(DefinedLanguage) -->
+<!--  <association langID="16" id=         "asp_syntax"    />    - L_ASP          -->
+<!--  <association langID="17" id=         "sql_syntax"    />    - L_SQL          -->
+      <association langID="18" id= "visualbasic_syntax"    /> <!-- L_VB           -->
+<!--  <association langID="18" id=    "vbdotnet_syntax"    />    - L_VB           -->
+<!--  <association langID="18" id=         "vba_syntax"    />    - L_VB           -->
+<!--  <association langID="18" id=         "vbs_syntax"    />    - L_VB           -->
+<!--  <association langID="19" id=  "javascript_syntax"    />    - L_JS           Don't use L_JS, use L_JAVASCRIPT instead -->
+<!--  <association langID="20" id=         "css_syntax"    />    - L_CSS          -->
+      <association langID="21" id=        "perl_syntax"    /> <!-- L_PERL         -->
+      <association langID="22" id=      "python_syntax"    /> <!-- L_PYTHON       -->
+      <association langID="23" id=         "lua_syntax"    /> <!-- L_LUA          -->
+<!--  <association langID="24" id=         "tex_syntax"    />    - L_TEX          -->
+<!--  <association langID="25" id=     "fortran_syntax"    />    - L_FORTRAN      -->
+      <association langID="26" id=        "bash_syntax"    /> <!-- L_BASH         -->
+<!--  <association langID="27" id=       "flash_syntax"    />    - L_FLASH        -->
+      <association langID="28" id=        "nsis_syntax"    /> <!-- L_NSIS         -->
+      <association langID="29" id=         "tcl_syntax"    /> <!-- L_TCL          -->
+<!--  <association langID="30" id=        "lisp_syntax"    />    - L_LISP         -->
+<!--  <association langID="31" id=      "scheme_syntax"    />    - L_SCHEME       -->
+      <association langID="32" id=    "assembly_syntax"    /> <!-- L_ASM          -->
+<!--  <association langID="33" id=        "diff_syntax"    />    - L_DIFF         -->
+<!--  <association langID="34" id=  "properties_syntax"    />    - L_PROPS        -->
+<!--  <association langID="35" id=  "postscript_syntax"    />    - L_PS           -->
+      <association langID="36" id=        "ruby_syntax"    /> <!-- L_RUBY         -->
+<!--  <association langID="37" id=   "smalltalk_syntax"    />    - L_SMALLTALK    -->
+      <association langID="38" id=        "vhdl_syntax"    /> <!-- L_VHDL         -->
+<!--  <association langID="39" id=     "kixtart_syntax"    />    - L_KIX          -->
+      <association langID="40" id=     "autoit3_syntax"    /> <!-- L_AU3          -->
+<!--  <association langID="41" id=        "caml_syntax"    />    - L_CAML         -->
+<!--  <association langID="42" id=         "ada_syntax"    />    - L_ADA          -->
+      <association langID="43" id=     "verilog_syntax"    /> <!-- L_VERILOG      -->
+<!--  <association langID="44" id=      "matlab_syntax"    />    - L_MATLAB       -->
+<!--  <association langID="45" id=     "haskell_syntax"    />    - L_HASKELL      -->
+      <association langID="46" id=        "inno_syntax"    /> <!-- L_INNO         -->
+<!--  <association langID="47" id="searchresult_syntax"    />    - L_SEARCHRESULT -->
+<!--  <association langID="48" id=       "cmake_syntax"    />    - L_CMAKE        -->
+<!--  <association langID="49" id=        "yaml_syntax"    />    - L_YAML         -->
+      <association langID="50" id=       "cobol_syntax"    /> <!-- L_COBOL        -->
+<!--  <association langID="50" id=       "cobol_fixedform" />    - L_COBOL        -->
+<!--  <association langID="50" id=       "cobol_freeform"  />    - L_COBOL        -->
+<!--  <association langID="51" id=     "gui4cli_syntax"    />    - L_GUI4CLI      -->
+<!--  <association langID="52" id=           "d_syntax"    />    - L_D            -->
+      <association langID="53" id=  "powershell_syntax"    /> <!-- L_POWERSHELL   -->
+      <association langID="54" id=           "r_syntax"    /> <!-- L_R            -->
+<!--  <association langID="55" id=         "jsp_syntax"    />    - L_JSP          -->
+<!--  <association langID="56" id="coffeescript_syntax"    />    - L_COFFEESCRIPT -->
+      <association langID="57" id=        "json_syntax"    /> <!-- L_JSON         -->
+      <association langID="58" id=  "javascript_syntax"    /> <!-- L_JAVASCRIPT   -->
+<!--  <association langID="59" id=   "fortran77_syntax"    />    - L_FORTRAN_77   -->
+<!--  <association langID="60" id="            _syntax"    />    - L_             -->
 
-		</associationMap>
-		<parsers>
+<!--
+    if langID cannot be found above, you can still set the file extensions
+      <association ext=".my_parser_ext1" id="my_parser_id" />
+      <association ext=".my_parser_ext2" id="my_parser_id" />
+-->
+      <association ext=".vba"  id="vba_syntax" /> <!-- Visual Basic for Applications -->
+      <association ext=".vbs"  id="vbs_syntax" /> <!-- Visual Basic Script           -->
+      <association ext=".go"   id="go_syntax"  />
 
-			<parser id="xml_node" displayName="XML Node" commentExpr="&lt;!--([^-]|-(?!-&gt;))*--&gt;">
-				<!-- Only match nodes with at least one attribute -->
-				<function
-				    mainExpr="&lt;[\w\?]+[\t ]+\w+[\t ]*=[\t ]*&quot;[^&quot;]+&quot;"
-					displayMode="$functionName">
-					<functionName>
-						<nameExpr expr="[^&lt;]*"/>
-					</functionName>
-				</function>
-			</parser>
+<!--
+    for User Defined Languages:
+      <association userDefinedLangName="my user defined language" id="my_udl_parser_id"     />
+      <association userDefinedLangName="Autocad"                  id="my_autocad_parser_id" />
+-->
+      <association userDefinedLangName="AGK"     id="agk_syntax"       />
+      <association userDefinedLangName="Papyrus" id="papyrus_function" />
+      <association userDefinedLangName="mql4"    id="mql4_syntax"      />
 
-			<parser id="batch_label" displayName="BAT Label" commentExpr="((::.*?$)|(REM.*?$))">
-				<function
-				    mainExpr="^[\t ]*:\w+"
-					displayMode="$functionName">
-					<functionName>
-						<nameExpr expr="[^\t :]*"/>
-					</functionName>
-				</function>
-			</parser>
+<!--
+    Combined:
+-->
+      <association ext=".nut"  userDefinedLangName="Squirrel"   id="squirrel_function" />
+      <association ext=".scad" userDefinedLangName="OpenSCAD"   id="OpenSCAD_syntax"   />
+      <association ext=".brs"  userDefinedLangName="BR! Source" id="brs_function"      />
+    </associationMap>
+    <parsers>
+      <!-- ================================================== [ php_syntax ] -->
+<!-- TODO -->
+      <parser
+          id         ="php_syntax"
+          displayName="PHP"
+          commentExpr="(?'MLC'(?s-m)/\*.*?\*/)|(?'SLC'(?m-s)(?:#|/{2}).*$)|(?'STRLIT'(?s-m)&quot;[^&quot;\\]*(?:\\.[^&quot;\\]*)*&quot;|&apos;[^&apos;\\]*(?:\\.[^&apos;\\]*)*&apos;)"
+          version    ="0.0.0.0"
+        >
+<!--
+            mainExpr   ="\s*(?:(?-i:abstract|final)\s+)?class[\t ]+[A-Za-z_]\w*(\s*|\s*(?-i:extends|implements)\s+[A-Za-z_]\w*\s*)?\{"
+    Patch #625 & Rev1285:
+            mainExpr   ="^[\s]*(class|abstract[\s]+class|final[\s]+class)[\t ]+[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*([\s]*|[\s]*(extends|implements|(extends[\s]+(\\|[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*)+[\s]+implements))[\s]+(\,[\s]*|(\\|[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*))+[\s]*)?\{"
+    cleaned-up to
+            mainExpr   ="\s*(?:(?-i:abstract|final)\s+)?class[\t ]+[A-Za-z_\x7f-\xff][\w\x7f-\xff]*(\s+(extends|implements|extends\s+(\\|[A-Za-z_\x7f-\xff][\w\x7f-\xff]*)+\s+implements)\s+(,\s*|(\\|[A-Za-z_\x7f-\xff][\w\x7f-\xff]*))+)?\s*\{"
+-->
+        <classRange
+            mainExpr   ="^\s*(?:(?-i:abstract|final)\s+)?(?-i:class)[\t ]+[A-Za-z_\x7f-\xff][\w\x7f-\xff]*(\s+(extends|implements|extends\s+(\\|[A-Za-z_\x7f-\xff][\w\x7f-\xff]*)+\s+implements)\s+(,\s*|(\\|[A-Za-z_\x7f-\xff][\w\x7f-\xff]*))+)?\s*\{"
+            openSymbol ="\{" openSymbole ="\{"
+            closeSymbol="\}" closeSymbole="\}"
+          >
+          <className>
+            <nameExpr expr="(?:(?-i:abstract|final)\s+)?(?-i:class)[\t ]+[A-Za-z_\x7f-\xff][\w\x7f-\xff]*" />
+            <nameExpr expr="\s+[A-Za-z_\x7f-\xff][\w\x7f-\xff]*\Z" />
+            <nameExpr expr="[A-Za-z_\x7f-\xff][\w\x7f-\xff]*\Z" />
+          </className>
+          <function
+              mainExpr="\s*(?:(?-i:static|public|protected|private|final)*(\s+(?-i:static|public|protected|private|final))+\s+)?(?-i:function\s+)([A-Za-z_\x7f-\xff][\w\x7f-\xff]*(\s+[A-Za-z_\x7f-\xff][\w\x7f-\xff]*)?(\s+|\*\s+|\s+\*|\s+\*\s+))?([A-Za-z_\x7f-\xff][\w\x7f-\xff]*\s*:{2})?(?:\b(?!(?-i:if|while|for|switch)\b))[A-Za-z_\x7f-\xff][\w\x7f-\xff]*\s*\([^\{]*\{"
+            >
+            <functionName>
+              <funcNameExpr expr="(?:\b(?!(?-i:if|while|for|switch)\b))[A-Za-z_\x7f-\xff][\w\x7f-\xff]*\s*\([^{]*" />
+              <!-- comment out the following node to display the method with its parameters -->
+              <funcNameExpr expr="[A-Za-z_\x7f-\xff][\w\x7f-\xff]*" />
+            </functionName>
+          </function>
+        </classRange>
+<!--
+    20160712
+            mainExpr="\s*function\s+\w+\("
+            https://github.com/notepad-plus-plus/notepad-plus-plus/issues/1919
+-->
+        <function
+            mainExpr="\s*(?-i:function)(?:\s+|[*&amp;]\s*|\s*[*&amp;]|\s*[*&amp;]\s*)(?:\b(?!(?-i:if|while|for|switch)\b))[A-Za-z_\x7f-\xff][\w\x7f-\xff]*\s*\([^{]*\{"
+          >
+<!--
+    20160712
+          <functionName>
+            <nameExpr expr="(?!(?-i:if|while|for)\b)~?[A-Za-z_]\w*\s*\(" />
+            <nameExpr expr="~?[A-Za-z_]\w*" />
+          </functionName>
+-->
+          <functionName>
+            <nameExpr expr="(?:\b(?!(?-i:if|while|for|switch)\b))[A-Za-z_\x7f-\xff][\w\x7f-\xff]*\s*\(" />
+            <!-- comment out the following node to display the function with its parameters -->
+            <nameExpr expr="[A-Za-z_\x7f-\xff][\w\x7f-\xff]*" />
+          </functionName>
+<!--
+    20160712
+          <className>
+            <nameExpr expr="\w+(?=\s*:{2})" />
+          </className>
+-->
+        </function>
+      </parser>
 
-			<parser id="ini_section" displayName="INI Section" commentExpr="((#.*?$)|(;.*?$))">
-				<function
-				    mainExpr="^[\t ]*[\[&quot;][\w_.; \(\)-]+[\]&quot;]"
-					displayMode="$functionName">
-					<functionName>
-						<nameExpr expr="[^\[\]&quot;]*"/>
-					</functionName>
-				</function>
-			</parser>
+      <!-- ==================================================== [ c_syntax ] -->
+      <parser
+          id         ="c_syntax"
+          displayName="C"
+          commentExpr="(?'MLC'(?s-m)/\*.*?\*/)|(?'STRLIT'(?s-m)&quot;[^&quot;\\]*(?:\\.[^&quot;\\]*)*&quot;|&apos;[^&apos;\\]*(?:\\.[^&apos;\\]*)*&apos;)"
+          version    ="0.0.0.0"
+        >
+        <function
+            mainExpr="(?:^|(?&lt;=\r\n|\r|\n))[\t ]*(?:\b[A-Za-z_]\w*\b\s*(?:(?:/\*.*?\*/|/{2}[^\r\n]*(?:\r?\n|\r))\s*)*)+(?:[*&amp;]\s*(?:(?:/\*.*?\*/|/{2}[^\r\n]*(?:\r?\n|\r))\s*)*(?:\b(?-i:const|volatile)\b(?:\s+|(?:(?:/\*.*?\*/|/{2}[^\r\n]*(?:\r?\n|\r))\s*)*))*)*(?:\b(?!(?-i:if|while|for|switch))\b)\b[A-Za-z_]\w*\b\s*(?:(?:/\*.*?\*/|/{2}[^\r\n]*(?:\r?\n|\r))\s*)*\([^()]*\)\s*(?:(?:/\*.*?\*/|/{2}[^\r\n]*(?:\r?\n|\r))\s*)*\{"
+          >
+          <functionName>
+            <nameExpr expr="(?:\b(?!(?-i:static|extern|const|volatile|void|char|short|int|long|float|double|signed|unsigned|if|while|for|switch))\b)\b[A-Za-z_\x7f-\xff][\w\x7f-\xff]*\b\s*(?:(?:/\*.*?\*/|/{2}[^\r\n]*(?:\r?\n|\r))\s*)*\([^()]*\)" />
+            <nameExpr expr="\b[A-Za-z_\x7f-\xff][\w\x7f-\xff]*\b\s*(?:(?:/\*.*?\*/|/{2}[^\r\n]*(?:\r?\n|\r))\s*)*\([^()]*\)" />
+            <!-- comment out the following node to display the method with its parameters -->
+<!--            <nameExpr expr="(?:\b(?!(?-i:if|while|for|switch))\b)[A-Za-z_\x7f-\xff][\w\x7f-\xff]*" /> -->
+          </functionName>
+        </function>
+      </parser>
 
-			<parser id="java" displayName="Java" commentExpr="((/\*.*?\*)/|(//.**$))">
-				<classRange mainExpr="^[\t ]*((public|protected|private|static|final|abstract|synchronized|@(\w)+)\s+)*(class|enum|interface|@interface)\s+\w+(&lt;\s*\w+(,\s*\w+)*\s*&gt;)?(\s+extends\s+\w+)?(\s+implements\s+\w+(,\s*\w+)*)?\s*\{" openSymbole="\{" closeSymbole="\}">
-					<className>
-						<nameExpr expr="(class|enum|interface|@interface)\s+\w+(&lt;\s*\w+(,\s*\w+)*\s*&gt;)?"></nameExpr>
-						<nameExpr expr="\s+\w+(&lt;\s*\w+(,\s*\w+)*\s*&gt;)?"></nameExpr>
-						<nameExpr expr="\w+(&lt;\s*\w+(,\s*\w+)*\s*&gt;)?"></nameExpr>
-					</className>
-					<function mainExpr="^[\t ]*((public|protected|private|static|final|abstract|synchronized|@(\w)+)\s+)*(\w*(\[\s*])*\s+)?(?!(if|while|for|switch|catch|synchronized)\b)\w+(\[\s*])*(&lt;\s*\w+(,\s*\w+)*\s*&gt;)?\s*\([^\)\(]*\)(\s+throws\s+\w+)?\s*\{">
-						<functionName>
-							<funcNameExpr expr="(?!(if|while|for|switch|catch|synchronized)\b)\w+(\[\s*])*(&lt;\s*\w+(,\s*\w+)*\s*&gt;)?\s*\("></funcNameExpr>
-							<funcNameExpr expr="(?!(if|while|for|switch|catch|synchronized)\b)\w+(\[\s*])*(&lt;\s*\w+(,\s*\w+)*\s*&gt;)?"></funcNameExpr>
-						</functionName>
-					</function>
-				</classRange>
-			</parser>
+      <!-- ============================================ [ cplusplus_syntax ] -->
+      <parser
+          id         ="cplusplus_syntax"
+          displayName="C / C++"
+          commentExpr="(?'MLC'(?s-m)/\*.*?\*/)|(?'SLC'(?m-s)/{2}.*$)|(?'STRLIT'(?s-m)&quot;[^&quot;\\]*(?:\\.[^&quot;\\]*)*&quot;|&apos;[^&apos;\\]*(?:\\.[^&apos;\\]*)*&apos;)"
+          version    ="2.0.1.1"
+        >
+        <classRange
+            mainExpr   ="(?:^|(?&lt;=\r\n|\r|\n))\s*(?-i:class|struct)\s+[A-Za-z_]\w*(?-i:\s*:\s*(?-i:public|protected|private)\s+[A-Za-z_]\w*(?:\s*,\s*(?-i:public|protected|private)\s+[A-Za-z_]\w*)*)?\s*\{"
+            openSymbol ="\{" openSymbole ="\{"
+            closeSymbol="\}" closeSymbole="\}"
+          >
+          <className>
+            <nameExpr expr="(?-i:class|struct)\s+[A-Za-z_]\w*" />
+            <nameExpr expr="\s+[A-Za-z_]\w*" />
+            <nameExpr expr="[A-Za-z_]\w*" />
+          </className>
+          <function
+              mainExpr="(?:^|(?&lt;=\r\n|\r|\n))\s*(?:(?-i:static|const|virtual)\s+)?(?:[A-Za-z_]\w*(\s+[A-Za-z_]\w*)?(\s+(?-i:const\s+)?|[*&amp;]\s+(?-i:const\s+)?|\s+(?-i:const\s+)?[*&amp;]|\s+(?-i:const\s+)?[*&amp;]\s+(?-i:const\s+)?))?(?:\b(?!(?-i:if|while|for|switch|catch))\b)[A-Za-z_~]\w*\s*\([^()]*\)(?:\s*:\s*[A-Za-z_]\w*\s*\([^()]*\)(?:\s*,\s*[A-Za-z_]\w*\s*\([^()]*\))*)?(?:\s+(?-i:const|throw))?\s*\{"
+            >
+            <functionName>
+              <funcNameExpr expr="(?:\b(?!(?-i:if|while|for|switch|catch))\b)[A-Za-z_~]\w*\s*\([^()]*\)" />
+              <!-- comment out the following node to display the method with its parameters -->
+<!--             <funcNameExpr expr="[A-Za-z_~]\w*" /> -->
+            </functionName>
+          </function>
+        </classRange>
+        <function
+            mainExpr="(?:^|(?&lt;=\r\n|\r|\n))[\t ]*(?:\b[A-Za-z_]\w*\b\s*(?:(?:/\*.*?\*/|/{2}[^\r\n]*(?:\r?\n|\r))\s*)*)+(?:[*&amp;]\s*(?:(?:/\*.*?\*/|/{2}[^\r\n]*(?:\r?\n|\r))\s*)*(?:\b(?-i:const|volatile)\b(?:\s+|(?:(?:/\*.*?\*/|/{2}[^\r\n]*(?:\r?\n|\r))\s*)*))*)*(?:\b(?!(?-i:if|while|for|switch))\b)\b[A-Za-z_]\w*\b\s*(?:(?:/\*.*?\*/|/{2}[^\r\n]*(?:\r?\n|\r))\s*)*\([^()]*\)\s*(?:(?:/\*.*?\*/|/{2}[^\r\n]*(?:\r?\n|\r))\s*)*\{"
+          >
+          <functionName>
+            <nameExpr expr="(?:\b(?!(?-i:static|extern|const|volatile|void|char|short|int|long|float|double|signed|unsigned|if|while|for|switch))\b)\b[A-Za-z_~]\w*\b\s*(?:(?:/\*.*?\*/|/{2}[^\r\n]*(?:\r?\n|\r))\s*)*\([^()]*\)" />
+            <nameExpr expr="\b[A-Za-z_~]\w*\b\s*(?:(?:/\*.*?\*/|/{2}[^\r\n]*(?:\r?\n|\r))\s*)*\([^()]*\)" />
+            <!-- comment out the following node to display the function with its parameters -->
+<!--            <nameExpr expr="(?:\b(?!(?-i:if|while|for|switch))\b)[A-Za-z_~]\w*" /> -->
+          </functionName>
+          <className>
+            <nameExpr expr="[A-Za-z_]\w*(?=\s*:{2})" />
+          </className>
+        </function>
+      </parser>
 
-			<parser id="c_function" displayName="C source" commentExpr="((/\*.*?\*)/|(//.*?$))">
-				<function
-				    mainExpr="^[\t ]*((static|const|virtual)[\s]+)?[\w:]+([\s]+[\w]+)?([\s]+|(\*|\*\*)[\s]+|[\s]+(\*|\*\*)|[\s]+(\*|\*\*)[\s]+)([\w_]+[\s]*::)?(?!(if|while|for))[\w_]+[\s]*\([^\)\(]*\)([\s]*const[\s]*)?[\n\s]*\{"
-					displayMode="$functionName">
-					<functionName>
-						<nameExpr expr="(?!(if|while|for))[\w_~]+[\s]*\("/>
-						<nameExpr expr="(?!(if|while|for))[\w_~]+"/>
-					</functionName>
-				</function>
-			</parser>
-			
-			
-			<parser id="js_function" displayName="Javascript" commentExpr="((/\*.*?\*)/|(//.*?$))">
-				<function
-				    mainExpr="((^|[\s]+|[;\}\.])([_A-Za-z][\w_]*\.)*[_A-Za-z][\w_]*[\s]*[=:]|^|[\s;\}]+)[\s]*function([\s]+[_A-Za-z]?[\w_]*\([^\)\(]*\)|\([^\)\(]*\))[\n\s]*\{"
-					displayMode="$className->$functionName">
-					<functionName>
-						<nameExpr expr="[_A-Za-z][\w_]*[\s]*[=:]|[_A-Za-z]?[\w_]*[\s]*\("/>
-						<nameExpr expr="[_A-Za-z]?[\w_]*"/>
-					</functionName>
-					<className>
-						<nameExpr expr="([_A-Za-z][\w_]*\.)*[_A-Za-z][\w_]*\."/>
-						<nameExpr expr="([_A-Za-z][\w_]*\.)*[_A-Za-z][\w_]*"/>
-					</className>
-				</function>
-			</parser>
-			
+      <!-- =============================================== [ csharp_syntax ] -->
+      <parser
+          id         ="csharp_syntax"
+          displayName="C#"
+          commentExpr="(?'MLC'(?s-m)/\*.*?\*/)|(?'SLC'(?m-s)/{2}.*$)"
+          version    ="0.0.0.0"
+        />
 
-			<parser id="c_cpp_function" displayName="C++ Class" commentExpr="((/\*.*?\*)/|(//.*?$))">
-				<classRange
-					mainExpr="^[\t ]*(class|struct)[\t ]+[\w]+[\s]*(final)?[\s]*(:[\s]*(public|protected|private)[\s]+[\w]+[\s]*)?\{"
-					openSymbole = "\{"
-					closeSymbole = "\}"
-					displayMode="node">
-					<className>
-						<nameExpr expr="(class|struct)[\t ]+[\w]+"/>
-						<nameExpr expr="[\t ]+[\w]+"/>
-						<nameExpr expr="[\w]+"/>
-					</className>
-					<function
-						mainExpr="^[\t ]*((static|const|virtual)[\s]+)?([\w]+([\s]+[\w]+)?([\s]+|(\*|\*\*|&amp;)[\s]+|[\s]+(\*|\*\*|&amp;)|[\s]+(\*|\*\*|&amp;)[\s]+))?([\w_]+[\s]*::)?(?!(if|while|for|switch))[\w_~]+[\s]*\([^\)\(]*\)([\s]*const[\s]*)?([\s]*(final|override|final[\s]*override|override[\s]*final)[\s]*)?[\n\s]*\{">
-						<functionName>
-							<funcNameExpr expr="(?!(if|while|for|switch))[\w_~]+[\s]*\("/>
-							<funcNameExpr expr="(?!(if|while|for|switch))[\w_~]+"/>
-						</functionName>
-					</function>
-				</classRange>
-				<function
-				    mainExpr="^[\t ]*((static|const|virtual)[\s]+)?[\w]+([\s]+[\w]+)?([\s]+|(\*|\*\*|&amp;)[\s]+|[\s]+(\*|\*\*|&amp;)|[\s]+(\*|\*\*|&amp;)[\s]+)([\w_]+[\s]*::)?(?!(if|while|for))[\w_]+[\s]*\([^\)\(]*\)([\s]*const[\s]*)?[\n\s]*\{"
-					displayMode="$className->$functionName">
-					<functionName>
-						<nameExpr expr="(?!(if|while|for))[\w_]+[\s]*\("/>
-						<nameExpr expr="(?!(if|while|for))[\w_]+"/>
-					</functionName>
-					<className>
-						<nameExpr expr="[\w_]+(?=[\s]*::)"/>
-					</className>
-				</function>
-			</parser>
-			
-			<parser id="nsis_syntax" displayName="NSIS Syntax" commentExpr="((/\*.*?\*)/|(#.*?$)|(;.*?$))">
-				<function
-				    mainExpr="^[\t ]*(!macro|Function|Section|SectionGroup)[\t ]+[^\r\n]*$"
-					displayMode="$functionName">
-					<functionName>
-						<nameExpr expr="(?(?=[\t ]*!macro)[\t ]*!macro[\t ]+[^\s]+|[^\r\n]*)"/>
-					</functionName>
-				</function>
-			</parser>
-			
-			<parser id="perl_function" displayName="Perl">
-				<function mainExpr="^[\s]*(?&lt;!#)[\s]*sub[\s]+[\w]+[\s]*\(?[^\)\(]*?\)?[\n\s]*\{" displayMode="$className->$functionName">
-					<functionName>
-						<nameExpr expr="(sub[\s]+)?\K[\w]+"/>
-					</functionName>
-					<className>
-						<nameExpr expr="[\w]+(?=[\s]*::)"/>
-					</className>
-				</function>
-			</parser>
-			
-			<parser id="php_function" displayName="PHP" commentExpr="((/\*.*?\*)/|(//.*?$))">
-				<classRange
-					mainExpr="^[\s]*(class|abstract[\s]+class|final[\s]+class)[\t ]+[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*([\s]*|[\s]*(extends|implements|(extends[\s]+(\\|[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*)+[\s]+implements))[\s]+(\,[\s]*|(\\|[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*))+[\s]*)?\{"
-					openSymbole = "\{"
-					closeSymbole = "\}"
-					displayMode="node">
-					<className>
-						<nameExpr expr="(class|abstract[\s]+class|final[\s]+class)[\s]+[\w]+"/>
-						<nameExpr expr="[\s]+[\w]+\Z"/>
-						<nameExpr expr="[\w]+\Z"/>
-					</className>
-					<function
-						mainExpr="^[\s]*((static|public|protected|private|final)*(\s+(static|public|protected|private|final))+[\s]+)?(function[\s]+)+([\w]+([\s]+[\w]+)?([\s]+|\*[\s]+|[\s]+\*|[\s]+\*[\s]+))?([\w_]+[\s]*::)?(?!(if|while|for|switch))[\w_~]+[\s]*\([^\{]*\{">
-						<functionName>
-							<funcNameExpr expr="(?!(if|while|for|switch))[\w_]+[\s]*\([^\{]*"/>
-							<!-- comment below node if want display method with parmas -->
-							<funcNameExpr expr="(?!(if|while|for|switch))[\w_]+"/>
-						</functionName>
-					</function>
-				</classRange>
-				<function
-					  mainExpr="^[\s]*function[\s]+\w+\("
-					  displayMode="$className->$functionName">
-					  <functionName>
-							<nameExpr expr="(?!(if|while|for))[\w_]+[\s]*\("/>
-							<nameExpr expr="(?!(if|while|for))[\w_]+"/>
-					   </functionName>
-					   <className>
-							<nameExpr expr="[\w_]+(?=[\s]*::)"/>
-					   </className>
-				</function>
-			</parser>
-			
-			<parser id="bash_function" displayName="Shell" commentExpr="(#.*?$)">
-				<function
-					mainExpr="^[\t ]*(function[\t\r\n ]*)?([a-zA-Z0-9_])+[\t\r\n ]*(\([^\)]*\))?[\t\r\n ]*(\{)[^(\})\r\n\t ]*"
-					displayMode="$functionName">
-					<functionName>
-						<nameExpr expr="[^{]*"/>
-					</functionName>
-				</function>
-			</parser>
-			
-			<parser id="python_function" displayName="Python class" commentExpr="(#.*?$|'''.*?('''|\Z))">
-				<classRange mainExpr="(?&lt;=^class ).*?(?=\n\S|\Z)">
-					<className>
-						<nameExpr expr="\w+(?=[\(|:])"/>
-					</className>
-					<function mainExpr="(?&lt;=def ).+?(?=:)">
-						<functionName>
-							<funcNameExpr expr=".*"/>
-						</functionName>
-					</function>
-				</classRange>
-				<function mainExpr="(?&lt;=def ).+?(?=:)">
-					<functionName>
-						<funcNameExpr expr=".*"/>
-					</functionName>
-				</function>
-			</parser>
-			
-			<parser id="ruby_function" displayName="Ruby">
-				<!-- within a class-->
-				<classRange 
-					mainExpr="(?&lt;=^class ).*?(?=\n\S|\Z)"
-					displayMode="node" >
-					<className>
-						<nameExpr expr="\w+"/>
-					</className>
-					<function mainExpr="^\s*def\s+\w+" displayMode="$className->$functionName" >
-						<functionName>
-							<funcNameExpr expr="(?&lt;=def\s)\w+"/>
-						</functionName>
-					</function>                  
-				</classRange>
-				
-				<!-- without class-->
-				<function mainExpr="^\s*def\s+\w+" displayMode="$functionName" >
-					<functionName>
-						<nameExpr expr="(?&lt;=def\s)\w+"/>
-					</functionName>
-				</function>
-			</parser>
-			
-			<parser id="cs_function" displayName="C# Class" commentExpr="((/\*.*?\*)/|(//.*?$))">
-				<classRange
-					mainExpr="^[\t ]*((public|protected|private|internal)[\s]+)?([\w]+[\s]*)?(class|struct|interface)[\t ]+[^\{]+\{"
-					openSymbole = "\{"
-					closeSymbole = "\}"
-					displayMode="node">
-					<className>
-						<nameExpr expr="(class|struct|interface)[\t ]+[\w]+"/>
-						<nameExpr expr="[\t ]+[\w]+"/>
-						<nameExpr expr="[\w]+"/>
-					</className>
-					<function
-						mainExpr="^[^\S\r\n]*(?&lt;modifier1&gt;(?:public|protected|internal|private)\s*)?(?&lt;modifier2&gt;(?:new|static|virtual|sealed|override|abstract|extern)\s*)?(partial\s*)?(?&lt;type&gt;(?!(return|if|else))\w+(?&lt;genericType&gt;&lt;[\w,\s&lt;&gt;]+&gt;)?\s+)(?&lt;name&gt;\w+(?&lt;genericNameType&gt;&lt;[\w,\s&lt;&gt;]+&gt;)?\s?)\((?&lt;params&gt;[\w\s,&lt;&gt;\[\]\:=\.]*)\)(?&lt;ctorChain&gt;\s*\:\s*(?:base|this)\s*\((?&lt;ctorParams&gt;[\w\s,&lt;&gt;\[\]\:=\.]*)\))?[\w\s&lt;&gt;\:,\(\)\[\]]*(?:\{|;)">
-						<functionName>
-							<funcNameExpr expr="(\w+(&lt;[\w,\s&lt;&gt;]+&gt;)?\s?)\("/>
-							<funcNameExpr expr="(\w+(&lt;[\w,\s&lt;&gt;]+&gt;)?\s?)"/>
-						</functionName>
-					</function>
-				</classRange>
-				<function mainExpr="">
-				</function>
-			</parser>
-		</parsers>
-	</functionList>
+      <!-- http://sourceforge.net/p/notepad-plus/patches/613/ -->
+      <parser
+          id         ="csharp_class"
+          displayName="C# Class"
+          commentExpr="((/\*.*?\*)/|(//.*?$))"
+          version    ="0.0.0.0"
+        >
+        <classRange
+            mainExpr   ="^[\t ]*((?-i:public|protected|private|internal)[\s]+)?([\w]+[\s]*)?(?-i:class|struct|interface)[\t ]+[^\{]+\{"
+            openSymbol ="\{" openSymbole ="\{"
+            closeSymbol="\}" closeSymbole="\}"
+          >
+          <className>
+            <nameExpr expr="(?-i:class|struct|interface)[\t ]+[\w]+" />
+            <nameExpr expr="[\t ]+[\w]+" />
+            <nameExpr expr="[\w]+" />
+          </className>
+          <function
+              mainExpr="^[^\S\r\n]*(?'modifier1'(?-i:public|protected|internal|private)\s*)?(?'modifier2'(?:new|static|virtual|sealed|override|abstract|extern)\s*)?(?-i:partial\s*)?(?'type'(?!(?-i:return|if|else))\w+(?'genericType'&lt;[\w,\s&lt;&gt;]+&gt;)?\s+)(?'name'\w+(?'genericNameType'&lt;[\w,\s&lt;&gt;]+&gt;)?\s?)\((?'params'[\w\s,&lt;&gt;\[\]\:=\.]*)\)(?'ctorChain'\s*\:\s*(?-i:base|this)\s*\((?'ctorParams'[\w\s,&lt;&gt;\[\]\:=\.]*)\))?[\w\s&lt;&gt;\:,\(\)\[\]]*(?:\{|;)"
+            >
+            <functionName>
+              <funcNameExpr expr="\w+(&lt;[\w,\s&lt;&gt;]+&gt;)?\s?\(" />
+              <funcNameExpr expr="\w+(&lt;[\w,\s&lt;&gt;]+&gt;)?\s?" />
+            </functionName>
+          </function>
+        </classRange>
+      </parser>
+
+      <!-- ================================================= [ java_syntax ] -->
+      <parser
+          id         ="java_syntax"
+          displayName="Java"
+          commentExpr="(?'MLC'(?s-m)/\*.*?\*/)|(?'SLC'(?m-s)/{2}.*$)"
+          version    ="0.0.0.0"
+        >
+        <classRange
+            mainExpr   ="[\t ]*((?-i:public|protected|private|static|final|abstract|synchronized|@(\w)+)\s+)*(?-i:class|enum|interface|@interface)\s+[A-Za-z_]\w*(&lt;\s*[A-Za-z_]\w*(,\s*[A-Za-z_]\w*)*\s*&gt;)?(\s+extends\s+[A-Za-z_]\w*)?(\s+implements\s+[A-Za-z_]\w*(,\s*[A-Za-z_]\w*)*)?\s*\{"
+            openSymbol ="\{" openSymbole ="\{"
+            closeSymbol="\}" closeSymbole="\}"
+          >
+          <className>
+            <nameExpr expr="(?-i:class|enum|interface|@interface)\s+[A-Za-z_]\w*(&lt;\s*[A-Za-z_]\w*(,\s*[A-Za-z_]\w*)*\s*&gt;)?" />
+            <nameExpr expr="\s+[A-Za-z_]\w*(&lt;\s*[A-Za-z_]\w*(,\s*[A-Za-z_]\w*)*\s*&gt;)?" />
+            <nameExpr expr="[A-Za-z_]\w*(&lt;\s*[A-Za-z_]\w*(,\s*[A-Za-z_]\w*)*\s*&gt;)?" />
+          </className>
+          <function
+              mainExpr="[\t ]*((?-i:public|protected|private|static|final|abstract|synchronized|@[A-Za-z_]\w*)\s+)*([A-Za-z_]\w*(\[\s*])*\s+)?(?:\b(?!(?-i:if|while|for|switch|catch|synchronized))\b)[A-Za-z_]\w*(\[\s*])*(&lt;\s*[A-Za-z_]\w*(,\s*[A-Za-z_]\w*)*\s*&gt;)?\s*\([^\)\(]*\)(\s+(?-i:throws)\s+[A-Za-z_]\w*)?\s*\{"
+            >
+            <functionName>
+              <funcNameExpr expr="(?:\b(?!(?-i:if|while|for|switch|catch|synchronized))\b)[A-Za-z_]\w*(\[\s*])*(&lt;\s*[A-Za-z_]\w*(,\s*[A-Za-z_]\w*)*\s*&gt;)?\s*\(" />
+              <funcNameExpr expr="[A-Za-z_]\w*(\[\s*])*(&lt;\s*[A-Za-z_]\w*(,\s*[A-Za-z_]\w*)*\s*&gt;)?" />
+            </functionName>
+          </function>
+        </classRange>
+      </parser>
+
+      <!-- ==================================================== [ xml_node ] -->
+      <parser
+          id         ="xml_node"
+          displayName="XML Node"
+          commentExpr="(?s-m)&lt;!--(?:[^\-]|-(?!-&gt;))*--&gt;"
+          version    ="1.0.3.0"
+        >
+        <!-- Only match nodes with at least one attribute -->
+        <function
+            mainExpr="&lt;(?!\?[Xx][Mm][Ll])[\w?]+(?:[\t \r\n]+\w+[\t ]*=[\t ]*(?'QUOTE'[&apos;&quot;])[^\k'QUOTE']*?\k'QUOTE')*"
+          >
+          <functionName>
+            <nameExpr expr="[^&lt;\s]*" />
+          </functionName>
+        </function>
+      </parser>
+
+      <parser
+          id         ="functionlist_syntax_v1"
+          displayName="XML Function List"
+          commentExpr="(?s-m)&lt;!--(?:[^\-]|-(?!-&gt;))*--&gt;"
+          version    ="1.0.0.0"
+        >
+        <function
+            mainExpr="(?s-m)&lt;parser(?:[\t \r\n]+\w+[\t ]*=[\t ]*[&quot;][^&quot;]*?[&quot;])*[\t \r\n]*/?&gt;"
+          >
+          <functionName>
+            <nameExpr expr="displayName=[&quot;][^&quot;]+[&quot;]" />
+            <nameExpr expr="(?&lt;=[&quot;])[^&quot;]*?(?=[&quot;])" />
+          </functionName>
+        </function>
+      </parser>
+
+      <parser
+          id         ="functionlist_syntax"
+          displayName="XML Function List"
+          commentExpr="(?s-m)&lt;!\-\-(?:[^\-]|-(?!-&gt;))*\-\-&gt;"
+          version    ="1.0.0.0"
+        >
+        <classRange
+            mainExpr   ="(?s-m)&lt;(?'COMPOUND'associationMap|parsers)&gt;.*?&lt;/\k'COMPOUND'&gt;"
+          >
+          <className>
+            <nameExpr expr="&lt;\w+&gt;" />
+            <nameExpr expr="\w+" />
+          </className>
+          <function
+              mainExpr="(?s-m)&lt;(?:association|parser)(?:[\t \r\n]+\w+[\t ]*=[\t ]*[&quot;][^&quot;]*?[&quot;])*[\t \r\n]*/?&gt;"
+            >
+            <functionName>
+              <funcNameExpr expr="\bid[\t ]*=[\t ]*[&quot;][^&quot;]+[&quot;]" />
+              <funcNameExpr expr="(?&lt;=[&quot;])[^&quot;]+(?=[&quot;])" />
+            </functionName>
+          </function>
+        </classRange>
+        <function
+            mainExpr="(?s-m)&lt;parser(?:[\t \r\n]+\w+[\t ]*=[\t ]*[&quot;][^&quot;]*?[&quot;])*[\t \r\n]*/?&gt;"
+          >
+          <functionName>
+            <nameExpr expr="displayName=[&quot;][^&quot;]+[&quot;]" />
+            <nameExpr expr="(?&lt;=[&quot;])[^&quot;]*?(?=[&quot;])" />
+          </functionName>
+        </function>
+      </parser>
+
+      <!-- =============================================== [ pascal_syntax ] -->
+      <parser
+          id         ="pascal_syntax"
+          displayName="Pascal"
+          commentExpr="(?s-m)(?'MLC1'(?:\(\*)(?:[^*]|\*[^)])*(?:\*\)))|(?'MLC2'(?:\{)(?:[^}])*(?:\}))"
+          version    ="1.0.0.0"
+        >
+        <function
+            mainExpr="(?:(?:\bfunction\b)[\t ]+\b[A-Za-z_]\w*\b(?:\s*\([^)]*\))?\s*:\s*\b[A-Za-z_]\w*\b|(?:\bprocedure\b)[\t ]+\b[A-Za-z_]\w*\b(?:\s*\([^)]*\))?)\s*;.*?((?!begin).)*(?:begin)"
+          >
+          <functionName>
+            <nameExpr expr="(?:\bfunction\b|\bprocedure\b)[\t ]+\b[A-Za-z_]\w*\b" />
+            <nameExpr expr="(?!function|procedure)\b[A-Za-z_]\w*\b" />
+          </functionName>
+        </function>
+      </parser>
+
+      <!-- ================================================= [ batch_label ] -->
+      <parser
+          id         ="batch_label"
+          displayName="Batch / Command Shell Script"
+          commentExpr="(?m-s)(?'SLC1'(?i:REM)(?:[\t ].+)?$)|(?'SLC2':{2}.*$)"
+          version    ="2.3.0.0"
+        >
+<!-- TODO: (ab-)use class-range to list sub-routines -->
+        <function
+            mainExpr="(?m-s)^[\t ]*:\w[\w.\-]+\b.*$"
+          >
+          <functionName>
+            <nameExpr expr="[\t ]*:[\w.\-]+\b" />
+            <nameExpr expr="[^\t :]*" />
+          </functionName>
+        </function>
+      </parser>
+
+      <!-- ================================================= [ ini_section ] -->
+      <parser
+          id         ="ini_section"
+          displayName="INI Section"
+          commentExpr="(?'SLC'(?m-s)[;#].*$)"
+          version    ="2.0.0.0"
+        >
+        <!-- Section -->
+        <classRange
+            mainExpr   ="\[[^\]]+][^\r\n]*(?:\r?\n|\r|$)(?:(?:(?:(?'QUOTE'[&apos;&quot;]?)[A-Za-z_@][\w\-.]*\k'QUOTE'[=]|[;#])[^\r\n]*)?(?:\r?\n|\r|$))*"
+          >
+          <className><!-- Section Name -->
+            <nameExpr expr="\[[^\]]+][^\r\n]*(?:\r?\n|\r|$)" />
+            <nameExpr expr="\[[^\]]+]" />
+            <nameExpr expr="[^[\]]+" />
+          </className>
+          <!-- Property -->
+          <function
+              mainExpr="(?'QUOTE'[&apos;&quot;]?)[A-Za-z_@][\w\-.]*\k'QUOTE'[=][^\r\n]*(?=\r?\n|$)"
+            >
+            <functionName><!-- Property Name -->
+              <funcNameExpr expr="(?'QUOTE'[&apos;&quot;]?)[A-Za-z_@][\w\-.]*\k'QUOTE'[=]" />
+              <funcNameExpr expr="[^=\r\n]+(?=[=])" />
+            </functionName>
+          </function>
+        </classRange>
+        <!-- Global Property -->
+        <function
+            mainExpr="(?'QUOTE'[&apos;&quot;]?)[A-Za-z_@][\w\-.]*\k'QUOTE'[=][^\r\n]*(?=\r?\n|$)"
+          >
+          <functionName> <!-- Global Property Name -->
+            <nameExpr expr="(?'QUOTE'[&apos;&quot;]?)[A-Za-z_@][\w\-.]*\k'QUOTE'[=]" />
+            <nameExpr expr="[^=\r\n]+(?=[=])" />
+          </functionName>
+        </function>
+      </parser>
+
+      <!-- ========================================== [ visualbasic_syntax ] -->
+<!-- TODO -->
+      <parser
+          id         ="visualbasic_syntax"
+          displayName="Visual Basic (.NET|Script|for Applications)"
+          commentExpr="(?m-s)(?'SLC1'&apos;.*$)|(?'SLC2'(?i:REM)([\t ].+)?$)"
+          version    ="1.0.2.0"
+        >
+        <classRange
+            mainExpr="(?'SCOPE'(?i:CLASS)).*?(?i:END[\t ]\k'SCOPE')"
+          >
+          <className>
+            <nameExpr expr="(?i:CLASS)[\t ]+(?:[A-Za-z_]\w*\b)(?:[^\r\n]*(?:\r?\n|\r))" />
+            <nameExpr expr="[\t ]+(?:[A-Za-z_]\w*\b)" />
+            <nameExpr expr="[A-Za-z_]\w*" />
+          </className>
+          <function
+              mainExpr="[\t ]*(?i:(?:(?:PRIVATE|PUBLIC)[\t ]+)?(?:STATIC[\t ]+)?(?:SUB|FUNCTION|PROPERTY)).*?(?:\(|$)"
+            >
+            <functionName>
+              <funcNameExpr expr="(?i:(?:(?:PRIVATE|PUBLIC)[\t ]+)?(?:STATIC[\t ]+)?(?:SUB|FUNCTION|PROPERTY)).*?(?:\(|$)" />
+              <funcNameExpr expr="(?i:(?:SUB|FUNCTION|PROPERTY)).*?(?:\(|$)" />
+              <funcNameExpr expr="[A-Za-z_]\w*(?=[\t ]*\()" />
+            </functionName>
+          </function>
+        </classRange>
+        <function
+            mainExpr="[\t ]*(?i:(?:(?:PRIVATE|PUBLIC)[\t ]+)?(?:STATIC[\t ]+)?(?:SUB|FUNCTION|PROPERTY)).*?(?:\(|$)"
+          >
+          <functionName>
+            <nameExpr expr="(?i:(?:(?:PRIVATE|PUBLIC)[\t ]+)?(?:STATIC[\t ]+)?(?:SUB|FUNCTION|PROPERTY)).*?(?:\(|$)" />
+            <nameExpr expr="(?i:(?:SUB|FUNCTION|PROPERTY)).*?(?:\(|$)" />
+            <nameExpr expr="[A-Za-z_]\w*(?=[\t ]*\()" />
+          </functionName>
+        </function>
+      </parser>
+
+      <parser
+          id         ="vbdotnet_syntax"
+          displayName="Visual Basic .NET"
+          commentExpr="(?m-s)(?'SLC1'&apos;.*$)|(?'SLC2'(?i:REM)([\t ].+)?$)"
+          version    ="0.0.0.0"
+        />
+
+      <parser
+          id         ="vbs_syntax"
+          displayName="Visual Basic Script"
+          commentExpr="(?m-s)(?'SLC1'&apos;.*$)|(?'SLC2'(?i:REM)([\t ].+)?$)"
+          version    ="0.0.0.0"
+        />
+
+      <parser
+          id         ="vba_syntax"
+          displayName="Visual Basic for Applications"
+          commentExpr="(?m-s)(?'SLC1'&apos;.*$)|(?'SLC2'(?i:REM)([\t ].+)?$)"
+          version    ="0.0.0.0"
+        />
+
+      <!-- https://plus.google.com/+AliAlKhawaher/posts/19hx2ViAvnu -->
+      <parser
+          id="vb_function"
+          displayName="Visual Basic (.NET|Script|for Applications)"
+          commentExpr="(('.?$)|(REM.?$))"
+        >
+          <!-- (sub | function |...                       =   one of the following: sub, function                                                                     -->
+          <!-- ... | property([\s]+(get|let))?)           =   OR one of the following: property, property get, property let (VB.NET has no get/let outside the prop)  -->
+          <!-- [\s]+[[:alpha:]][\w]*                      =   1+ whitespaces, 1 non-digit char, 0+ char                                                               -->
+          <!-- ([\s]+lib[\s]+&quot;[\w]+&quot;            =   possible appearance of: 1+ whitespaces lib "libname"                                                    -->
+          <!-- ...([\s]+alias[\s]+&quot;[\w]+&quot;)?)?   =   with possible appearence of: 1+ whitespaces alias "aliasname"                                           -->
+          <!-- [\s]\([^\)\(]\)                            =   0+ whitespaces, parentheses containing parameters, can be multiline                                     -->
+          <function
+              mainExpr="(sub|function|property([\s]+(get|let))?)[\s]+[[:alpha:]][\w]([\s]+lib[\s]+&quot;[\w]+&quot;([\s]+alias[\s]+&quot;[\w]+&quot;)?)?[\s](\([^\)\(]*|\n)"
+            >
+            <functionName>
+              <!-- (re-)move the \K to display more or less of the function declaration -->
+              <nameExpr expr="((sub|function|property)[\s]+)?\K((let|get)?[\s]+)?[\w&quot;]+([\s]+lib[\s]+&quot;[\w]+&quot;([\s]+alias[\s]+&quot;[\w]+&quot;)?)?" />
+            </functionName>
+          </function>
+      </parser>﻿
+
+      <!-- =========================================== [ javascript_syntax ] -->
+      <parser
+          id         ="javascript_syntax"
+          displayName="JavaScript"
+          commentExpr="(?'MLC'(?s-m)/\*.*?\*/)|(?'SLC'(?m-s)/{2}.*$)"
+          version    ="20150527"
+        >
+        <classRange
+            mainExpr   ="(?-i:var)\s+(?'NAME'[A-Za-z_]\w*)\s*=\s*\{"
+            openSymbol ="\{" openSymbole ="\{"
+            closeSymbol="\}" closeSymbole="\}"
+          >
+          <className>
+            <nameExpr expr="(?-i:var)\s+\K(?'NAME'[A-Za-z_]\w*)" />
+          </className>
+          <function
+              mainExpr="(?'NAME'[A-Za-z_]\w*)\s*:\s*(?-i:function\b)\s*(?'ARGS'\([^()]*\))\s*\{"
+            >
+            <functionName>
+              <funcNameExpr expr="(?'NAME'[A-Za-z_]\w*)" />
+            </functionName>
+          </function>
+        </classRange>
+        <function
+            mainExpr="((^|\s+|[;}.])([A-Za-z_]\w*\.)*[A-Za-z_]\w*\s*[=:]|^|[\s;}]+)\s*function(\s+[A-Za-z_]\w*)?\s*\([^()]*\)\s*\{"
+          >
+          <functionName>
+            <nameExpr expr="[A-Za-z_]\w*\s*[=:]|[A-Za-z_]\w*\s*\(" />
+            <nameExpr expr="[A-Za-z_]\w*" />
+          </functionName>
+          <className>
+            <nameExpr expr="([A-Za-z_]\w*\.)*[A-Za-z_]\w*\." />
+            <nameExpr expr="([A-Za-z_]\w*\.)*[A-Za-z_]\w*" />
+          </className>
+        </function>
+
+        <!-- https://github.com/notepad-plus-plus/notepad-plus-plus/issues/2012 -->
+<!--
+            mainExpr="((^|[\(\){};:=,\s])function(\s+[$_\w]*|\()|(?:[$_A-Za-z][\w_$]*\s*\.\s*(|prototype\s*\.)\s*[$_A-Za-z][\w_$]*\s*|[$_A-Za-z][\w_$]*\s*)[=:]\s*\(*(?:function(\s+|\()))"
+-
+        <function
+            mainExpr="(?:(?:^|[(){};:=,\s])function(?:\s+[$\w]*|\s*\()|[$_A-Za-z]\w*\s*(?:\.(?:\s*prototype\s*\.)?\s*[$_A-Za-z]\w*\s*)?[=:]\s*(?:\(*\s*)*function\b)"
+          >
+          <functionName>
+            <nameExpr expr="(?&lt;=function)\s+[$_A-Za-z]\w*|[$_A-Za-z]\w*\s*[=:]" />
+            <nameExpr expr="[$_A-Za-z]\w*" />
+          </functionName>
+          <className>
+            <nameExpr expr="[$_A-Za-z]\w*\s*\.\s*" />
+            <nameExpr expr="[$_A-Za-z]\w*" />
+          </className>
+        </function>
+-->
+      </parser>
+
+      <!-- ================================================= [ perl_syntax ] -->
+      <parser
+          id         ="perl_syntax"
+          displayName="PERL"
+          commentExpr="(?'SLC'(?m-s)#.*$)"
+          version    ="0.0.0.0"
+        >
+<!-- TODO: add class-range -->
+        <function
+            mainExpr="sub\s+[A-Za-z_]\w*\s*\([^()]*\)\s*\{"
+          >
+          <functionName>
+            <nameExpr expr="(sub\s+)?\K[A-Za-z_]\w*" />
+          </functionName>
+          <className>
+            <nameExpr expr="[A-Za-z_]\w*(?=\s*:{2})" />
+          </className>
+        </function>
+      </parser>
+
+      <!-- http://www.perlmonks.org/?node_id=1139708 -->
+      <parser
+          id         ="perl_function"
+          displayName="Perl"
+          commentExpr="(#.*?$|(__END__.*\Z))"
+        >
+        <classRange
+            mainExpr="(?&lt;=^package).*?(?=\npackage|\Z)"
+          >
+          <className>
+            <nameExpr expr="\s\K[^;]+" />
+          </className>
+          <function
+              mainExpr="^[\s]*(?&lt;!#)[\s]*sub[\s]+[\w]+[\s]*\(?[^\)\(]*?\)?[\n\s]*\{"
+            >
+            <functionName>
+              <funcNameExpr expr="(sub[\s]+)?\K[\w]+" />
+            </functionName>
+          </function>
+        </classRange>
+        <function
+            mainExpr="^[\s]*(?&lt;!#)[\s]*sub[\s]+[\w]+[\s]*\(?[^\)\(]*?\)?[\n\s]*\{"
+          >
+          <functionName>
+            <nameExpr expr="(?:sub[\s]+)?\K[\w]+" />
+          </functionName>
+        </function>
+      </parser>
+
+      <!-- =============================================== [ python_syntax ] -->
+      <parser
+          id         ="python_syntax"
+          displayName="Python"
+          commentExpr="(?'MLC'(?s-m)(?'TRIQUOTE'(?:&apos;{3}|&quot;{3})).*?\k'TRIQUOTE')|(?'SLC'(?m-s)#[^\r\n]*(?:\r?\n|\r|$))"
+          version    ="0.0.0.0"
+        >
+<!-- TODO: add class-range
+            mainExpr="(?m-s)(?:^|(?&lt;=\r\n|\r|\n))(?'INDENT'[ \t]*)(?-i:\bclass)[ \t]+(?'NAME'[A-Za-z_]\w*)(?'ARGS'[ \t]*\([^():]*?\))?[ \t]*:.*?(?=(?:\r?\n|\r)\k'INDENT'(?-i:\b(?:class|def)\b))"
+ -->
+        <classRange
+            mainExpr="(?s-m)(?&lt;=\r\n|\r|\n)?(?'INDENT'[ \t]*)(?-i:\bclass)[ \t]+(?'NAME'[A-Za-z_]\w*)(?'ARGS'[ \t]*\([^():]*?\))?[ \t]*:[^\r\n]*(?'EOL'\r?\n|\r).*?(?=\k'EOL'\k'INDENT'(?-i:\b(?:class|def)\b))"
+          >
+          <className>
+            <nameExpr expr="(?s-m)(?-i:\bclass)[ \t]+\K(?'NAME'[A-Za-z_]\w*)(?'ARGS'[ \t]*\([^():]*?\))?" />
+          </className>
+          <function
+              mainExpr="(?s-m)(?-i:\bdef)[ \t]+(?'NAME'[A-Za-z_]\w*)(?'ARGS'[ \t]*\([^():]*?\))?[ \t]*:"
+            >
+<!--
+            <functionName>
+              <funcNameExpr expr="(?-i:\bdef)[ \t]+\K(?'NAME'[A-Za-z_]\w*)(?:[ \t]*\(.*?\))?" />
+              < ! - - comment out the following node to display the method with its parameters - - >
+              <funcNameExpr expr="[A-Za-z_]\w*" />
+            </functionName>
+ -->
+          </function>
+        </classRange>
+        <function
+            mainExpr="(?m-s)^(?-i:\bdef)[ \t]+(?'NAME'[A-Za-z_]\w*)(?'ARGS'[ \t]*\(.*?\))?[ \t]*:"
+          >
+          <functionName>
+              <nameExpr expr="(?-i:\bdef)[ \t]+\K(?'NAME'[A-Za-z_]\w*)(?'ARGS'[ \t]*\(.*?\))?" />
+              <!-- comment out the following node to display the function with its parameters -->
+<!--              <nameExpr expr="[A-Za-z_]\w*" /> -->
+          </functionName>
+        </function>
+      </parser>
+
+      <!-- ================================================== [ lua_syntax ] -->
+      <parser
+          id         ="lua_syntax"
+          displayName="Lua"
+          commentExpr="(?'MLC'(?s-m)(?:^|(?&lt;=[^-]))--\[(?'MLCLVL'=*)\[.*?]\k'MLCLVL'])|(?'SLC'(?m-s)--.*$)|(?'STRLIT'(?s-m)=\s*\[(?'SLLVL'=*)\[.*?]\k'SLLVL'])"
+          version    ="0.3.0.0"
+        >
+<!-- TODO: add class-range -->
+        <function
+            mainExpr="(?:(?:^|(?&lt;=\r\n|\r|\n))[\t ]*(?-i:(?:\blocal\b\s+)?\bfunction\b)\s+[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*(?::[A-Za-z_]\w*)?|\s*[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*\s*=\s*(?-i:\bfunction\b))\s*\("
+          >
+          <functionName>
+            <nameExpr expr="(?&lt;=\bfunction\b)\s+[A-Za-z_][\w.:]*\s*\(|[A-Za-z_][\w.]*\s*=" />
+            <nameExpr expr="[A-Za-z_][\w.:]*" />
+          </functionName>
+        </function>
+      </parser>
+
+      <!-- http://stackoverflow.com/questions/19246077/how-to-add-lua-functions-to-the-notepad-functionlist-xml -->
+      <!-- Basic lua parser for functionList.xml in Notepad++ 6.5.3 -->
+      <!-- See http://notepad-plus-plus.org/features/function-list.html -->
+      <parser
+          id         ="lua_function"
+          displayName="Lua Function + Class"
+          commentExpr="--.*?$"
+          version    ="0.0.0.0"
+        >
+        <!-- Basic lua table view, nested lua table not supported -->
+        <classRange
+            mainExpr   ="[.\w]+[\s]*=[\s]*\{"
+            openSymbol ="\{" openSymbole ="\{"
+            closeSymbol="\}" closeSymbole="\}"
+          >
+          <className>
+            <nameExpr expr="[.\w]+" />
+          </className>
+          <function
+              mainExpr="[.\w]+[\s]*=[\s]*['&quot;]?[\w]+['&quot;]?"
+            >
+            <functionName>
+              <funcNameExpr expr=".*" />
+            </functionName>
+          </function>
+        </classRange>
+        <!-- Basic lua functions support -->
+        <function
+            mainExpr="(function[\s]+[.\w]+(:[\w]+)?)|([.\w]+[\s]*=[\s]*function)"
+          >
+          <functionName>
+            <nameExpr expr="((?&lt;=function)[\s]+[.:\w]+)|(([.\w]+)(?=([\s]*=[\s]*function)))" />
+          </functionName>
+          <className>
+            <nameExpr expr="[.\w]+(?=:)" />
+          </className>
+        </function>
+      </parser>
+
+      <!-- ============================================== [ fortran_syntax ] -->
+      <parser
+          id         ="fortran_syntax"
+          displayName="Fortran"
+          commentExpr=""
+          version    ="0.0.0.0"
+        />
+      <parser
+          id         ="fortran77_syntax"
+          displayName="Fortran 77"
+          commentExpr=""
+          version    ="0.0.0.0"
+        />
+      <parser
+          id         ="fortran90_syntax"
+          displayName="Fortran 90"
+          commentExpr=""
+          version    ="0.0.0.0"
+        />
+      <parser
+          id         ="fortran95_syntax"
+          displayName="Fortran 95"
+          commentExpr=""
+          version    ="0.0.0.0"
+        />
+
+      <!-- ================================================= [ bash_syntax ] -->
+      <parser
+          id         ="bash_syntax"
+          displayName="Bash"
+          commentExpr="(?'SLC'(?m-s)#.*$)"
+          version    ="0.1.0.1"
+        >
+        <function
+            mainExpr="^[\t ]*(?-i:\bfunction\b\s+)?\w+(?:\s*\([^)]*\))?[^{}]*\{"
+          >
+          <functionName>
+            <nameExpr expr="\b(?!function\b)\w+(?:\s*\([^)]*\))?" />
+            <!-- comment out the following node to display the function with its parameters -->
+<!--        <nameExpr expr="\w+(?=\s*\()" /> -->
+          </functionName>
+        </function>
+      </parser>
+
+      <!-- ================================================= [ nsis_syntax ] -->
+      <parser
+          id         ="nsis_syntax"
+          displayName="NSIS"
+          commentExpr="(?'MLC'(?s-m)/\*.*?\*/)|(?'SLC'(?m-s)[#;].*$)"
+          version    ="0.0.0.0"
+        >
+        <function
+            mainExpr="[\t ]*(?-i:!macro|Function|Section|SectionGroup)[\t ]+[^\r\n]*"
+          >
+          <functionName>
+            <nameExpr expr="(?(?=[\t ]*!macro)[\t ]*!macro[\t ]+\S+|[^\r\n]*)" />
+          </functionName>
+        </function>
+      </parser>
+
+      <!-- ================================================== [ tcl_syntax ] -->
+<!-- TODO -->
+<!--
+        http://99-developer-tools.com/notepad-function-list-tcl-bash/
+          commentExpr="(#)">
+            mainExpr="^[\t ]*((proc)[\s]+)[^\n]+\{"
+            <nameExpr expr="[\w: ]+ \{.*\}" />
+-->
+      <parser
+          id         ="tcl_syntax"
+          displayName="Tcl"
+          commentExpr="(?'SLC'(?m-s)#.*$)"
+          version    ="0.0.0.1"
+        >
+        <function
+            mainExpr="^[\t ]*(?-i:proc)\s+[^\n]+\{"
+          >
+          <functionName>
+            <nameExpr expr="[\w: ]+\{.*\}" />
+          </functionName>
+        </function>
+      </parser>
+
+      <!-- ============================================= [ assembly_syntax ] -->
+      <parser
+          id         ="assembly_syntax"
+          displayName="Assembly"
+          commentExpr="(?'SLC'(?m-s);.*$)"
+          version    ="3.0.0.0"
+        >
+        <function
+            mainExpr="(?:^|(?&lt;=\r\n|\r|\n))[\t ]*[A-Za-z_$][\w$]*:"
+          >
+          <functionName>
+            <nameExpr expr="[A-Za-z_$][\w$]*(?=:)" />
+          </functionName>
+        </function>
+      </parser>
+
+      <!-- ================================================= [ ruby_syntax ] -->
+      <parser
+          id         ="ruby_syntax"
+          displayName="Ruby"
+          commentExpr="(?'SLC'(?m-s)#[^{].*$)|(?'MLC'(?s-m)(?:^|(?&lt;=\r\n|\r|\n))(?-i:=begin\b)(?:[\t ][^\r\n]+)?\r?\n(?:[^\r\n]*(?:\r?\n|\r))*?(?-i:=end\b))"
+          version    ="1.0.2.0"
+        >
+        <classRange
+            mainExpr="[\t ]*(?-i:\bclass\b)[\t ]+\b(?'clid'(?!\b(?-i:alias|and|BEGIN|begin|break|case|class|def|defined\?|do|else|elsif|END|end|ensure|false|for|if|in|module|next|nil|not|or|redo|rescue|retry|return|self|super|then|true|undef|unless|until|when|while|yield|__FILE__|__LINE__)\b)[A-Za-z_]\w*)\b[^\r\n]*\r?\n(?:(?'sl'[\t ]*#[^\r\n]*(?:\r?\n|\r))|(?'ml'(?-i:=begin\b)(?:[\t ][^\r\n]+)?\r?\n(?:[^\r\n]*(?:\r?\n|\r))*?(?-i:=end\b))|(?'bl'[\t ]*(?:\r?\n|\r))|(?'vl'[\t ]*\b(?'vid'\$(?:(?!\b(?-i:alias|and|BEGIN|begin|break|case|class|def|defined\?|do|else|elsif|END|end|ensure|false|for|if|in|module|next|nil|not|or|redo|rescue|retry|return|self|super|then|true|undef|unless|until|when|while|yield|__FILE__|__LINE__)\b)[A-Za-z_]\w*|-.|.)|@{0,2}(?!\b(?-i:alias|and|BEGIN|begin|break|case|class|def|defined\?|do|else|elsif|END|end|ensure|false|for|if|in|module|next|nil|not|or|redo|rescue|retry|return|self|super|then|true|undef|unless|until|when|while|yield|__FILE__|__LINE__)\b)[A-Za-z_]\w*)\b[^\r\n]*(?:\r?\n|\r))|(?'mt'[\t ]*(?-i:\bdef\b)[\t ]+(?'mtid'(?!\b(?-i:alias|and|BEGIN|begin|break|case|class|def|defined\?|do|else|elsif|END|end|ensure|false|for|if|in|module|next|nil|not|or|redo|rescue|retry|return|self|super|then|true|undef|unless|until|when|while|yield|__FILE__|__LINE__)\b)[A-Za-z_]\w*[?!=]?|:{2}|\*{1,2}|![=~]?|=(?:~|={1,2})?|[~+\-/%&amp;|\^]|&lt;(?:&lt;|=&gt;?)?|&gt;[&gt;=]?|\[]=?)[^\r\n]*\r?\n(?:[^\r\n]*(?:\r?\n|\r))*?[\t ]*(?-i:\bend\b)[^\r\n]*(?:\r?\n|\r)))*?[\t ]*(?-i:\bend\b)[^\r\n]*(?:\r?\n|\r|$)"
+          >
+          <className>
+            <nameExpr expr="(?-i:\bclass\b)[\t ]+[A-Za-z_]\w*\b" />
+            <nameExpr expr="[\t ]+[A-Za-z_]\w*" />
+            <nameExpr expr="[A-Za-z_]\w*" />
+          </className>
+          <function
+              mainExpr="(?-i:\bdef\b)[\t ]+(?:[A-Za-z_]\w*[?!=]?|:{2}|\*{1,2}|![=~]?|=(?:~|={1,2})?|[~+\-/%&amp;|\^]|&lt;(?:&lt;|=&gt;?)?|&gt;[&gt;=]?|\[]=?)[^\r\n]*\r?\n(?:[^\r\n]*(?:\r?\n|\r))*?[\t ]*(?-i:\bend\b)[^\r\n]*\r?\n"
+            >
+            <functionName>
+              <funcNameExpr expr="(?&lt;=def)[\t ]+(?:[A-Za-z_]\w*[?!=]?(?:[\t ]*\()?|(?::{2}|\*{1,2}|![=~]?|=(?:~|={1,2})?|[~+\-/%&amp;|\^]|&lt;(?:&lt;|=&gt;?)?|&gt;[&gt;=]?|\[]=?)[\t ]*\()" />
+              <!-- comment out the following node to display the method with its parameters -->
+              <funcNameExpr expr="(?:[A-Za-z_]\w*[?!=]?|(?::{2}|\*{1,2}|![=~]?|=(?:~|={1,2})?|[~+\-/%&amp;|\^]|&lt;(?:&lt;|=&gt;?)?|&gt;[&gt;=]?|\[]=?))" />
+            </functionName>
+          </function>
+        </classRange>
+        <function
+            mainExpr="[\t ]*(?-i:\balias\b)(?:[\t ]+(?:(?!\b(?-i:alias|and|BEGIN|begin|break|case|class|def|defined\?|do|else|elsif|END|end|ensure|false|for|if|in|module|next|nil|not|or|redo|rescue|retry|return|self|super|then|true|undef|unless|until|when|while|yield|__FILE__|__LINE__)\b)[A-Za-z_]\w*)){2}[^\r\n]*(?:\r?\n|\r|$)|[\t ]*(?-i:\bdef\b)[\t ]+(?:(?!\b(?-i:alias|and|BEGIN|begin|break|case|class|def|defined\?|do|else|elsif|END|end|ensure|false|for|if|in|module|next|nil|not|or|redo|rescue|retry|return|self|super|then|true|undef|unless|until|when|while|yield|__FILE__|__LINE__)\b)[A-Za-z_]\w*[?!=]?(?:[\t ]*\([^)]*\))?|(?::{2}|\*{1,2}|![=~]?|=(?:~|={1,2})?|[~+\-/%&amp;|\^]|&lt;(?:&lt;|=&gt;?)?|&gt;[&gt;=]?|\[]=?)[\t ]*\([^)]*\))(?:[^\r\n]*(?:\r?\n|\r))+?[\t ]*(?-i:\bend\b)[^\r\n]*(?:\r?\n|\r|$)"
+          >
+          <functionName>
+            <nameExpr expr="(?-i:\balias\b)(?:[\t ]+(?:[A-Za-z_]\w*)){2}|(?-i:\bdef\b)[\t ]+(?:[A-Za-z_]\w*[?!=]?(?:[\t ]*\()?|(?::{2}|\*{1,2}|![=~]?|=(?:~|={1,2})?|[~+\-/%&amp;|\^]|&lt;(?:&lt;|=&gt;?)?|&gt;[&gt;=]?|\[]=?)[\t ]*\()" />
+            <nameExpr expr="(?&lt;=alias)[\t ]+[A-Za-z_]\w*|(?&lt;=def)[\t ]+(?:[A-Za-z_]\w*[?!=]?|(?::{2}|\*{1,2}|![=~]?|=(?:~|={1,2})?|[~+\-/%&amp;|\^]|&lt;(?:&lt;|=&gt;?)?|&gt;[&gt;=]?|\[]=?))" />
+            <nameExpr expr="(?:[A-Za-z_]\w*[?!=]?|(?::{2}|\*{1,2}|![=~]?|=(?:~|={1,2})?|[~+\-/%&amp;|\^]|&lt;(?:&lt;|=&gt;?)?|&gt;[&gt;=]?|\[]=?))" />
+          </functionName>
+        </function>
+      </parser>
+
+      <!-- ================================================= [ vhdl_syntax ] -->
+<!-- TODO -->
+      <parser
+          id         ="vhdl_syntax"
+          displayName="VHDL"
+          commentExpr="(?'SLC'(?m-s)--.*?$)"
+          version    ="1.0.0.1"
+        >
+        <function
+            mainExpr="^[\t ]*\w+\s*:\s*(entity\s+)?(\w+\.)?\w+\s+(\w+\s+)?(generic|port)\s+map"
+          >
+          <functionName>
+            <nameExpr expr="\w+" />
+          </functionName>
+        </function>
+      </parser>
+
+      <!-- ============================================== [ kixtart_syntax ] -->
+      <parser
+          id         ="kixtart_syntax"
+          displayName="KiXtart"
+          commentExpr=""
+          version    ="0.0.0.0"
+        />
+
+      <!-- ============================================== [ autoit3_syntax ] -->
+      <parser
+          id         ="autoit3_syntax"
+          displayName="AutoIt3"
+          commentExpr="(?mi-s)^\s*;.*?$|(?s-m)#cs.*?#ce"
+          version    ="1.0.0.2"
+        >
+        <function
+            mainExpr="^\s*(?i:FUNC)\s+[A-Za-z_]\w*\s*\([^()]*?\)"
+          >
+          <functionName>
+            <nameExpr expr="(?!(?i:FUNC)\b)[A-Za-z_]\w*\s*\(" />
+            <nameExpr expr="[A-Za-z_]\w*" />
+          </functionName>
+        </function>
+      </parser>
+
+      <!-- ============================================== [ verilog_syntax ] -->
+      <parser
+          id         ="verilog_syntax"
+          displayName="Verilog"
+          commentExpr="(?'MLC'(?s-m)/\*.*?\*/)|(?'SLC'(?m-s)/{2}.*$)"
+          version    ="1.0.0.1"
+        >
+        <function
+            mainExpr="\w+\s*(//.+?(?:\r?\n|\r))*\s*\(\s*(//.+?(?:\r?\n|\r))*\s*\.\w+"
+          >
+          <functionName>
+            <nameExpr expr="\w+" />
+          </functionName>
+        </function>
+      </parser>
+
+      <!-- ================================================= [ inno_syntax ] -->
+      <parser
+          id         ="inno_syntax"
+          displayName="INNO Setup"
+          commentExpr="(?'SLC'(?m-s)[;#][^\r\n]*(?:\r?\n|\r|$))"
+          version    ="0.1.0.0"
+        />
+<!--
+        <function
+            mainExpr="(?i)^\h*Func\h+[_A-Za-z0-9]+\h*\("
+          >
+          <functionName>
+            <nameExpr expr="(?mi)(?&lt;=^Func[\t ])([_A-Za-z0-9]+)" />
+          </functionName>
+        </function>
+-->
+
+      <!-- ================================================ [ cobol_syntax ] -->
+      <parser
+          id         ="cobol_syntax"
+          displayName="COBOL"
+          commentExpr="(?'SLC'(?m-s)(?:^[\d\t ]{6}\*|\*&gt;).*$)"
+          version    ="0.1.0.1"
+        >
+        <function
+            mainExpr="(?s-m)[\d\t ]{6}[D ][\t ]{0,3}(?!exit)[\w\-]+\s+section(?:\s+\w+)?\s*?\."
+          >
+          <functionName>
+            <nameExpr expr="(?!exit)[\w\-]+\s+section" />
+          </functionName>
+        </function>
+      </parser>
+
+      <parser
+          id         ="cobol_fixedform"
+          displayName="COBOL Fixed-form Reference Format"
+          commentExpr="(?'SLC'(?m-s)(?:^[\d\t ]{6}\*|\*&gt;).*$)"
+          version    ="0.0.0.0"
+        >
+        <function
+            mainExpr="(?m-s)^.{6}[ D][\t ]{0,3}(?'ID'(?!exit\s)[\w\-]+)(?'NOTID'(?'seps'(?:[\t ]+|(?'LB'(?:\r?\n|\r)+)(?:.{6}[ D]| .{0,6}$))+)section(?:(?&amp;seps)[\w\-]*)?)?\."
+          >
+          <functionName>
+            <nameExpr expr="[\w\-]+((?=\.)|((?'seps'([\t ]|([\n\r]+(.{6}[ D]|.{0,6}$)))+)section((?=\.)|(?&amp;seps)((?=\.)|[\w\-]+(?=\.)))))" />
+          </functionName>
+        </function>
+      </parser>
+
+      <parser
+          id         ="cobol_freeform"
+          displayName="COBOL Free-form Reference Format"
+          commentExpr="(?'SLC'(?m-s)\*&gt;.*$)"
+          version    ="0.0.0.0"
+        >
+        <function
+            mainExpr="(?m-s)(?&lt;=\.)\s*(?!exit\s)[\w\-]+(\s+section(\s*|(\s+[\w\-]+)?))(?=\.)"
+          >
+          <functionName>
+            <nameExpr expr="(?&lt;=[\s\.])[\w\-]+(\s*section\s*([\w\-]+)?)?" />
+          </functionName>
+        </function>
+      </parser>
+
+      <!-- =========================================== [ powershell_syntax ] -->
+      <parser
+          id         ="powershell_syntax"
+          displayName="PowerShell"
+          commentExpr="(?'MLC'(?s-m)&lt;#(?:[^#]|#[^&gt;])*#&gt;)|(?'SLC'(?m-s)#.*$)"
+          version    ="0.1.0.0"
+        >
+        <function
+            mainExpr="\b(?:function|filter)\b\s+(?:[A-Za-z_]\w*:)?[A-Za-z_][\w\-]*\s*[({]"
+          >
+          <functionName>
+            <nameExpr expr="[A-Za-z_][\w\-]*(?=\s*[({])" />
+          </functionName>
+          <className>
+            <nameExpr expr="[A-Za-z_]\w*(?=:)" />
+          </className>
+        </function>
+      </parser>
+
+      <!-- ==================================================== [ r_syntax ] -->
+      <parser
+          id         ="r_syntax"
+          displayName="R"
+          commentExpr="(?'SLC'(?m-s)#.*?$)"
+          version    ="1.0.0.1"
+        >
+        <function
+            mainExpr="(?m-s)(?:^|;)\s*(?'ID'[A-Za-z][\w.]*|\.[A-Za-z_.][\w.]*)\s*(?:&lt;-|=)\s*(?-i:function)\s*\([^)]*\)"
+          >
+          <functionName>
+            <nameExpr expr="(?'ID'[A-Za-z][\w.]*|\.[A-Za-z_.][\w.]*)(?=\s*(?:&lt;-|=))" />
+          </functionName>
+        </function>
+      </parser>
+
+      <!-- ================================================= [ json_syntax ] -->
+      <!-- https://github.com/notepad-plus-plus/notepad-plus-plus/issues/2045 -->
+      <parser
+          id         ="json_syntax"
+          displayName="JSON for MongoDb import"
+          commentExpr="(?'SLC'(?m-s)#.*?$)"
+          version    ="1.0.0.0"
+        >
+        <function
+            mainExpr="&quot;_id&quot;\s*:\s*&quot;[\w]+&quot;\s*"
+          >
+          <functionName>
+            <nameExpr expr=":\s*&quot;\K[\w]+" />
+          </functionName>
+        </function>
+      </parser>
+
+      <!-- ================================================== [ agk_syntax ] -->
+      <parser
+          id         ="agk_syntax"
+          displayName="AGK"
+        >
+        <function
+            mainExpr="Function\s*\w*\([$ÄÖÜäöüA-Za-z0-9_ ,.#]*\)\s*$|^Type\s*\w*[$ÄÖÜäöüA-Za-z0-9_ ,.#]*$"
+          >
+          <functionName>
+            <nameExpr expr="\s[()$ÄÖÜäöüA-Za-z0-9_ ,.#]*$" />
+          </functionName>
+        </function>
+      </parser>
+
+      <!-- ================================================== [ sql_syntax ] -->
+      <!-- http://www.hermanmol.nl/?p=240 -->
+      <parser
+          id         ="sql_syntax"
+          displayName="SQL"
+          commentExpr="(/\*.*?\*/)|(--.*?$)"
+        >
+        <function
+            mainExpr="^\s*(function|procedure)\s+\w+"
+          >
+          <functionName>
+            <nameExpr expr="^\s*(function|procedure)\s+\K\w+" />
+          </functionName>
+        </function>
+      </parser>
+
+      <!-- ================================================ [ ahk_function ] -->
+      <!-- https://autohotkey.com/board/topic/111969-notepad-function-list-xml/ -->
+      <!-- \x08 = backspace, \x09 = tab, \x7B = left curly brace -->
+      <parser
+          id         ="ahk_function"
+          displayName="AHK"
+          commentExpr="(;.*?$|/\*[^\x08]*?\*/)"
+        >
+<!--
+    20160723: clean-up
+            mainExpr="^(#[\w]+|[\w\d]+\(.*?\)|[~!#\$\^\*\+<>].*?[\w\d&]+|:\*?:[\w\d]+|[\w\d]+ :)[^\x09\x7B;\r\n]*" 
+-->
+        <function
+            mainExpr="^(#\w+|\w+\(.*?\)|[~!#$\^*+&lt;&gt;].*?[\w&amp;]+|:\*?:\w+|\w+ :)[^\t{;\r\n]*"
+          >
+          <functionName>
+            <nameExpr expr=".*" />
+          </functionName>
+        </function>
+      </parser>
+
+      <!-- ============================================ [ papyrus_function ] -->
+      <!-- http://schnellzugs.blogspot.nl/2013/11/papyrus-function-list-in-notepad.html -->
+      <parser
+          id         ="papyrus_function"
+          displayName="Papyrus"
+          commentExpr="(;.*?$)"
+        >
+        <function
+            mainExpr="^[\t ]*([\w]+[\t ]+)?(function|event)[\t ]+\w+[\t ]*\(.*?\)"
+          >
+          <functionName>
+            <nameExpr expr="\w+[\t ]*\(.*?\)" />
+          </functionName>
+        </function>
+      </parser>
+
+      <!-- ============================================= [ OpenSCAD_syntax ] -->
+      <!-- http://forum.openscad.org/OpenSCAD-modules-and-functions-list-in-editors-Geany-or-Notepad-td14042.html -->
+<!--
+    20160723: clean-up
+          commentExpr="(/\*.*?\*/)|(//.*?$)"
+            mainExpr="^[\t ]*(module|function)\w+"
+            <nameExpr expr="[^\t(module|function)]+[\w]+" />
+-->
+      <parser
+          id         ="OpenSCAD_syntax"
+          displayName="OpenSCAD"
+          commentExpr="(?'MLC'(?s-m)/\*.*?\*/)|(?'SLC'(?m-s)/{2}.*$)"
+        >
+        <function
+            mainExpr="^[\t ]*(?:module|function)[\t ]+\w+"
+          >
+          <functionName>
+            <nameExpr expr="(?!(?:module|function)\b)[\t ]+\K[\w]+" />
+          </functionName>
+        </function>
+      </parser>
+
+      <!-- ================================================= [ mql4_syntax ] -->
+      <!-- https://forum.mql4.com/66417 -->
+      <parser
+          id         ="mql4_syntax"
+          displayName="MQL4"
+          commentExpr="(/\*.*?\*/)|(//.*?$)"
+        >
+<!--
+    20160723: clean-up
+            mainExpr="^[\t ]*[\w:]+([\s]+[\w]+)?([\s]+|\*[\s]+|[\s]+\*|[\s]+\*[\s]+)([\w_]+[\s]*::)?(?!(if|while|for))[\w_]+[\s]*\([^\)\(]*\)([\s]*const[\s]*)?[\n\s]*\{"
+            <nameExpr expr="(?!(if|while|for))[\w_~]+[\s]*\(" />
+            <nameExpr expr="(?!(if|while|for))[\w_~]+" />
+-->
+        <function
+            mainExpr="^[\t ]*[\w:]+(\s+\w+)?(?:\s+|\*\s+|\s+\*|\s+\*\s+)(\w+\s*::)?(?!(?:if|while|for)\b)[\w~]+\s*\([^()]*\)(\s*const\s*)?\s*\{"
+          >
+          <functionName>
+            <nameExpr expr="(?!(?:if|while|for)\b)[\w~]+\s*\(" />
+            <nameExpr expr="(?!(?:if|while|for)\b)[\w~]+" />
+          </functionName>
+        </function>
+      </parser>
+
+      <!-- =================================================== [ go_syntax ] -->
+      <!-- http://  -->
+      <parser
+          id         ="go_syntax"
+          displayName="Go"
+          commentExpr="((/\*.*?\*/)|(//.*?$))"
+        >
+        <function
+            mainExpr="(^func\s+[\w]+)|(^func\s*\(\s*[\w]+\s+\*?\s*[\w]+\s*\)\s*[\w]+)"
+          >
+          <functionName>
+            <nameExpr expr="(((func)[\s][\w]+)|(\(\s*[\w]+\s+\*?\s*[\w]+\s*\)\s*[\w]+))" />
+            <nameExpr expr="(((func)[\s][\w]+)|(\)\s*[\w]+))" />
+            <nameExpr expr="(([\s][\w]+)|(\)\s*[\w]+))" />
+            <nameExpr expr="[\w]+" />
+          </functionName>
+          <className>
+            <nameExpr expr="\(\s*[\w]+\s+\*?\s*[\w]+\s*\)\s*[\w]+" />
+            <nameExpr expr="\(\s*[\w]+\s+\*?\s*[\w]+\s*\)" />
+            <nameExpr expr="[\w]+\s+\*?\s*[\w]+\s*\)" />
+            <nameExpr expr="\*?\s*[\w]+\s*\)" />
+            <nameExpr expr="[\w]+\s*\)" />
+            <nameExpr expr="[\w]+" />
+          </className>
+        </function>
+      </parser>
+
+      <!-- ================================================ [ brs_function ] -->
+      <!-- https://notepad-plus-plus.org/community/topic/12126/regex-for-function-list-in-user-defined-language-business-rules -->
+      <parser
+          id         ="brs_function"
+          displayName="BR! Source"
+        >
+        <function
+            mainExpr="(?i)(\d{3,5}[\t ]+)?DEF([\t ]+LIBRARY)?[\t ]+FN\w+\$?[\t ]*(\([^)]*\)|=)?"
+          >
+          <functionName>
+            <nameExpr expr="(?i)FN\w+\$?[\t ]*(\([^)]*\))?" />
+            <!-- comment out the following node to display the method with its parameters -->
+<!--            <nameExpr expr="(?i)FN\w+\$?" /> -->
+          </functionName>
+        </function>
+      </parser>
+
+      <!-- ================================================ [ html_element ] -->
+      <!-- https://github.com/notepad-plus-plus/notepad-plus-plus/issues/1142  -->
+      <parser
+          id         ="html_element"
+          displayName="HTML Element"
+          commentExpr="&lt;!--([^-]|-(?!-&gt;))*--&gt;"
+        >
+        <function
+            mainExpr="&lt;\w[^&gt;]*"
+          >
+          <functionName>
+            <nameExpr expr="[^&lt;]+" />
+          </functionName>
+        </function>
+      </parser>
+
+      <!-- ============================================================== [] -->
+    </parsers>
+  </functionList>
 </NotepadPlus>
